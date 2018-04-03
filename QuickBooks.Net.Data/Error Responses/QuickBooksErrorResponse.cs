@@ -6,7 +6,7 @@ namespace QuickBooks.Net.Data.Error_Responses
     {
         public FaultResponse Fault;
 
-        public DateTime? Time;
+        public long? Time;
 
         public override string ToString()
         {

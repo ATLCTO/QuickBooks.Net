@@ -236,10 +236,12 @@ namespace QuickBooks.Net.Controllers
                 accept += $", {acceptType}";
             }
 
+            var auth = GetAuthHeader(url, requestMethod, queryParams);
+
             var client = url.WithHeaders(new
             {
                 Accept = accept,
-                Authorization = GetAuthHeader(url, requestMethod, queryParams)
+                Authorization = auth
             });
 
             try
@@ -301,9 +303,10 @@ namespace QuickBooks.Net.Controllers
                         xml["Detail"], errorCode);
                 }
 
+
+                var value = ex.Call.Response.Content.ReadAsStringAsync().Result;
                 var response =
-                    JsonConvert.DeserializeObject<QuickBooksErrorResponse>(
-                        ex.Call.Response.Content.ReadAsStringAsync().Result);
+                    JsonConvert.DeserializeObject<QuickBooksErrorResponse>(value);
 
                 throw new QuickBooksException("A Quickbooks exception occurred.", response);
             }
@@ -312,6 +315,11 @@ namespace QuickBooks.Net.Controllers
 
         private string GetAuthHeader(string url, HttpMethod method, IDictionary<string, string> queryParams)
         {
+            if (string.IsNullOrEmpty(Client.AccessTokenSecret) && !string.IsNullOrEmpty(Client.AccessToken))
+            {
+                return string.Format("Bearer {0}", Client.AccessToken);
+            }
+
             return new OAuthRequest
             {
                 Version = _oAuthVersion,

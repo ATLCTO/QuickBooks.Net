@@ -7,6 +7,10 @@ using Flurl.Http;
 using QuickBooks.Net.Data.Models;
 using QuickBooks.Net.Data.Models.Authorization;
 using QuickBooks.Net.Utilities;
+using System.Text;
+using System.Net.Http;
+using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace QuickBooks.Net
 {
@@ -21,6 +25,7 @@ namespace QuickBooks.Net
         private const string CurrentUserUrl = "https://appcenter.intuit.com/api/v1/user/current";
         private const string DisconnectUrl = "https://appcenter.intuit.com/api/v1/connection/disconnect";
         private const string ReconnectUrl = "https://appcenter.intuit.com/api/v1/connection/reconnect";
+        private const string RefreshUrl = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
 
         #endregion
 
@@ -223,6 +228,34 @@ namespace QuickBooks.Net
                 throw new UnauthorizedQuickBooksClientException(
                     "Unable to get access tokens.",
                     ex.InnerException);
+            }
+        }
+
+        public async Task<AccessTokenResponse> RefreshAccessTokens(string refreshToken)
+        {
+            var client = RefreshUrl.WithHeaders(new
+            {
+                Accept = AcceptType,
+            });
+            client = client.WithBasicAuth(ConsumerKey, ConsumerSecret);
+
+            var nvc = new List<KeyValuePair<string, string>>();
+            nvc.Add(new KeyValuePair<string, string>("grant_type", "refresh_token"));
+            nvc.Add(new KeyValuePair<string, string>("refresh_token", refreshToken));
+            var content = new FormUrlEncodedContent(nvc);
+
+            try
+            {
+                var response = await client.PostAsync(content);
+                var value = await response.Content.ReadAsStringAsync();
+                var result = JsonConvert.DeserializeObject<AccessTokenResponse>(value);
+
+                this.AccessToken = result.AccessToken;
+                return result;
+            }
+            catch (FlurlHttpException ex)
+            {
+                throw new QuickBooksException("Unable to refresh tokens.", ex.Message);
             }
         }
 
